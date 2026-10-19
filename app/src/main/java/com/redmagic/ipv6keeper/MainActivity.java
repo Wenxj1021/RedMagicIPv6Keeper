@@ -153,7 +153,7 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
                 "settings put global wifi_sleep_policy 2\n" +
                 "ip -6 neigh flush dev wlan0\n" +
                 "ping6 -c 2 -W 2 'ff02::2%wlan0'\n" +
-                "ping6 -c 1 -W 2 2400:3200::1 || ping6 -c 1 -W 2 2001:4860:4860::8888\n",
+                "ping6 -c 1 -W 2 2001:4860:4860::8888 || ping6 -c 1 -W 2 2606:4700:4700::1111 || ping6 -c 1 -W 2 2400:3200::1\n",
                 new ShellManager.Callback() {
                     @Override
                     public void onOutput(String line) {
@@ -231,8 +231,10 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
                 "ip -6 addr show dev wlan0 | grep inet6\n" +
                 "echo '[NDP 邻居网关状态]'\n" +
                 "ip -6 neigh show dev wlan0\n" +
-                "echo '[公网 IPv6 连通性测试 (阿里 DNS / Google DNS)]'\n" +
-                "ping6 -c 2 -W 2 2400:3200::1 || ping6 -c 2 -W 2 2001:4860:4860::8888\n",
+                "echo '[公网 IPv6 连通性测试 (Google / Cloudflare / 阿里)]'\n" +
+                "ping6 -c 1 -W 2 2001:4860:4860::8888\n" +
+                "ping6 -c 1 -W 2 2606:4700:4700::1111\n" +
+                "ping6 -c 1 -W 2 2400:3200::1\n",
                 new ShellManager.Callback() {
                     @Override
                     public void onOutput(String line) {
@@ -361,101 +363,114 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
         });
     }
 
-    private static class ProbeEndpoint {
+    private static class TargetNode {
+        final String name;
         final String host;
         final int port;
-        final String name;
+        int latency = -1;
+        boolean ok = false;
 
-        ProbeEndpoint(String host, int port, String name) {
+        TargetNode(String name, String host, int port) {
+            this.name = name;
             this.host = host;
             this.port = port;
-            this.name = name;
         }
     }
 
-    private static final ProbeEndpoint[] PROBE_ENDPOINTS = new ProbeEndpoint[]{
-            // 1. 国内权威大学/开源镜像站 (国内首选，100% 直连无墙)
-            new ProbeEndpoint("2402:f000:1:400::2", 443, "清华开源镜像 (国内)"),
-            // 2. 全球高可用 Anycast DNS
-            new ProbeEndpoint("2606:4700:4700::1111", 53, "Cloudflare (全球)"),
-            // 3. Google Public DNS
-            new ProbeEndpoint("2001:4860:4860::8888", 53, "Google DNS (海外)")
-    };
-
     private void checkIpv6Status() {
-        setTrafficLight(TrafficState.TESTING, "正在检测 IPv6...", "正在探测公网连通性与网关状态...", "本地 IPv6: 检测中...", 0);
+        setTrafficLight(TrafficState.TESTING, "正在检测 IPv6...", "正在并发测试三大节点 (Google · Cloudflare · 阿里)...", "本地 IPv6: 检测中...", 0);
 
         new Thread(() -> {
             String globalIp = getGlobalIpv6Address();
             boolean hasGlobal = (globalIp != null && !globalIp.isEmpty());
 
-            boolean connected = false;
-            int latency = 0;
-            String matchedName = "";
+            TargetNode[] nodes = new TargetNode[]{
+                    new TargetNode("Google", "2001:4860:4860::8888", 53),
+                    new TargetNode("Cloudflare", "2606:4700:4700::1111", 53),
+                    new TargetNode("阿里", "2400:3200::1", 443)
+            };
 
-            // 1. Multi-endpoint TCP Socket race/check (fastest user-space check)
-            for (ProbeEndpoint ep : PROBE_ENDPOINTS) {
-                long start = System.currentTimeMillis();
-                try (java.net.Socket s = new java.net.Socket()) {
-                    s.connect(new java.net.InetSocketAddress(ep.host, ep.port), 1200);
-                    connected = true;
-                    latency = (int) (System.currentTimeMillis() - start);
-                    matchedName = ep.name;
-                    break;
-                } catch (Exception ignored) {}
+            java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(nodes.length);
+            java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(nodes.length);
+
+            for (TargetNode node : nodes) {
+                pool.execute(() -> {
+                    long start = System.currentTimeMillis();
+                    try (java.net.Socket s = new java.net.Socket()) {
+                        s.connect(new java.net.InetSocketAddress(node.host, node.port), 1500);
+                        node.latency = (int) (System.currentTimeMillis() - start);
+                        node.ok = true;
+                    } catch (Exception ignored) {
+                        // If TCP socket fails, attempt ping6 fallback with Shizuku if available
+                        if (ShellManager.hasPermission()) {
+                            ShellManager.CommandResult res = ShellManager.execSync("ping6 -c 1 -W 2 " + node.host, null);
+                            if (res.exitCode == 0) {
+                                node.latency = parsePingRtt(res.output);
+                                node.ok = true;
+                            }
+                        }
+                    } finally {
+                        latch.countDown();
+                    }
+                });
             }
 
-            // 2. If socket check failed, attempt ping6 with Shizuku (AliDNS first, then Google DNS)
-            if (!connected && ShellManager.hasPermission()) {
-                ShellManager.CommandResult res = ShellManager.execSync("ping6 -c 1 -W 2 2400:3200::1", null);
-                if (res.exitCode == 0) {
-                    connected = true;
-                    latency = parsePingRtt(res.output);
-                    matchedName = "阿里公共 DNS (国内)";
+            try {
+                latch.await(2500, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (InterruptedException ignored) {}
+            pool.shutdown();
+
+            int successCount = 0;
+            StringBuilder latencySummary = new StringBuilder();
+            for (int i = 0; i < nodes.length; i++) {
+                TargetNode node = nodes[i];
+                if (node.ok) successCount++;
+                latencySummary.append(node.name).append(": ");
+                if (node.ok) {
+                    latencySummary.append(node.latency > 0 ? node.latency + "ms" : "<30ms");
                 } else {
-                    res = ShellManager.execSync("ping6 -c 1 -W 2 2001:4860:4860::8888", null);
-                    if (res.exitCode == 0) {
-                        connected = true;
-                        latency = parsePingRtt(res.output);
-                        matchedName = "Google DNS (海外)";
-                    }
+                    latencySummary.append("超时❌");
+                }
+                if (i < nodes.length - 1) {
+                    latencySummary.append(" · ");
                 }
             }
 
-            final boolean isConnected = connected;
-            final int finalLatency = latency;
-            final String finalMatchedName = matchedName;
+            final int finalSuccessCount = successCount;
+            final String finalLatencyStr = latencySummary.toString();
             final String addrDisplay = hasGlobal ? globalIp : "未获取到公网 IPv6 地址";
 
             runOnUiThread(() -> {
-                if (isConnected && hasGlobal) {
-                    String rttStr = (finalLatency > 0) ? (finalLatency + " ms") : "<30 ms";
+                if (finalSuccessCount == 3) {
+                    // 全部能连上：绿灯
                     setTrafficLight(
                             TrafficState.GREEN,
-                            "IPv6 畅通无阻",
-                            "公网已畅通 · 延迟: " + rttStr + " · " + finalMatchedName,
+                            "IPv6 全线畅通 (3/3)",
+                            finalLatencyStr,
                             "公网 IP: " + addrDisplay,
-                            finalLatency
+                            0
                     );
-                    appendLog("[状态检测] 🟢 IPv6 畅通无阻 (" + rttStr + " / " + finalMatchedName + ")");
-                } else if (hasGlobal && !isConnected) {
+                    appendLog("[状态检测] 🟢 全线畅通 (3/3): " + finalLatencyStr);
+                } else if (finalSuccessCount > 0) {
+                    // 只能连上其中几个：黄灯
                     setTrafficLight(
                             TrafficState.YELLOW,
-                            "IPv6 受阻 / 握手超时",
-                            "已获取公网 IP 但公网探针均超时，建议点击下方「一键修复」",
+                            "IPv6 部分连通 (" + finalSuccessCount + "/3)",
+                            finalLatencyStr,
                             "本地 IP: " + addrDisplay,
                             0
                     );
-                    appendLog("[状态检测] 🟡 IPv6 受阻: 已分配 IP 但公网握手超时");
+                    appendLog("[状态检测] 🟡 部分连通 (" + finalSuccessCount + "/3): " + finalLatencyStr);
                 } else {
+                    // 一个都连不上：红灯
                     setTrafficLight(
                             TrafficState.RED,
-                            "IPv6 掉线 / 未连接",
-                            "未检测到可用公网 IPv6 地址，请检查 Wi-Fi 或点击「一键修复」",
-                            "状态: 处于 IPv4 单栈模式",
+                            "IPv6 彻底断开 (0/3)",
+                            finalLatencyStr,
+                            "状态: " + (hasGlobal ? "已分配 IP 但全线超时" : "未获取公网 IPv6"),
                             0
                     );
-                    appendLog("[状态检测] 🔴 IPv6 掉线: 未获取公网 IPv6");
+                    appendLog("[状态检测] 🔴 全部断开 (0/3): " + finalLatencyStr);
                 }
             });
         }).start();
