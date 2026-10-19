@@ -153,7 +153,7 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
                 "settings put global wifi_sleep_policy 2\n" +
                 "ip -6 neigh flush dev wlan0\n" +
                 "ping6 -c 2 -W 2 'ff02::2%wlan0'\n" +
-                "ping6 -c 2 -W 2 2001:4860:4860::8888\n",
+                "ping6 -c 1 -W 2 2400:3200::1 || ping6 -c 1 -W 2 2001:4860:4860::8888\n",
                 new ShellManager.Callback() {
                     @Override
                     public void onOutput(String line) {
@@ -231,8 +231,8 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
                 "ip -6 addr show dev wlan0 | grep inet6\n" +
                 "echo '[NDP 邻居网关状态]'\n" +
                 "ip -6 neigh show dev wlan0\n" +
-                "echo '[公网 IPv6 连通性测试 (Google DNS)]'\n" +
-                "ping6 -c 2 -W 2 2001:4860:4860::8888\n",
+                "echo '[公网 IPv6 连通性测试 (阿里 DNS / Google DNS)]'\n" +
+                "ping6 -c 2 -W 2 2400:3200::1 || ping6 -c 2 -W 2 2001:4860:4860::8888\n",
                 new ShellManager.Callback() {
                     @Override
                     public void onOutput(String line) {
@@ -361,6 +361,27 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
         });
     }
 
+    private static class ProbeEndpoint {
+        final String host;
+        final int port;
+        final String name;
+
+        ProbeEndpoint(String host, int port, String name) {
+            this.host = host;
+            this.port = port;
+            this.name = name;
+        }
+    }
+
+    private static final ProbeEndpoint[] PROBE_ENDPOINTS = new ProbeEndpoint[]{
+            // 1. 国内权威大学/开源镜像站 (国内首选，100% 直连无墙)
+            new ProbeEndpoint("2402:f000:1:400::2", 443, "清华开源镜像 (国内)"),
+            // 2. 全球高可用 Anycast DNS
+            new ProbeEndpoint("2606:4700:4700::1111", 53, "Cloudflare (全球)"),
+            // 3. Google Public DNS
+            new ProbeEndpoint("2001:4860:4860::8888", 53, "Google DNS (海外)")
+    };
+
     private void checkIpv6Status() {
         setTrafficLight(TrafficState.TESTING, "正在检测 IPv6...", "正在探测公网连通性与网关状态...", "本地 IPv6: 检测中...", 0);
 
@@ -370,34 +391,40 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
 
             boolean connected = false;
             int latency = 0;
-            long start = System.currentTimeMillis();
+            String matchedName = "";
 
-            // 1. Direct TCP Socket test to Google Public DNS IPv6 (fastest user-space check)
-            try (java.net.Socket s = new java.net.Socket()) {
-                s.connect(new java.net.InetSocketAddress("2001:4860:4860::8888", 53), 1500);
-                connected = true;
-                latency = (int) (System.currentTimeMillis() - start);
-            } catch (Exception ignored) {
-                // Secondary check: Cloudflare DNS IPv6
+            // 1. Multi-endpoint TCP Socket race/check (fastest user-space check)
+            for (ProbeEndpoint ep : PROBE_ENDPOINTS) {
+                long start = System.currentTimeMillis();
                 try (java.net.Socket s = new java.net.Socket()) {
-                    start = System.currentTimeMillis();
-                    s.connect(new java.net.InetSocketAddress("2606:4700:4700::1111", 53), 1500);
+                    s.connect(new java.net.InetSocketAddress(ep.host, ep.port), 1200);
                     connected = true;
                     latency = (int) (System.currentTimeMillis() - start);
-                } catch (Exception ignored2) {}
+                    matchedName = ep.name;
+                    break;
+                } catch (Exception ignored) {}
             }
 
-            // 2. If socket check failed, attempt ping6 with Shizuku if available
+            // 2. If socket check failed, attempt ping6 with Shizuku (AliDNS first, then Google DNS)
             if (!connected && ShellManager.hasPermission()) {
-                ShellManager.CommandResult res = ShellManager.execSync("ping6 -c 1 -W 2 2001:4860:4860::8888", null);
+                ShellManager.CommandResult res = ShellManager.execSync("ping6 -c 1 -W 2 2400:3200::1", null);
                 if (res.exitCode == 0) {
                     connected = true;
                     latency = parsePingRtt(res.output);
+                    matchedName = "阿里公共 DNS (国内)";
+                } else {
+                    res = ShellManager.execSync("ping6 -c 1 -W 2 2001:4860:4860::8888", null);
+                    if (res.exitCode == 0) {
+                        connected = true;
+                        latency = parsePingRtt(res.output);
+                        matchedName = "Google DNS (海外)";
+                    }
                 }
             }
 
             final boolean isConnected = connected;
             final int finalLatency = latency;
+            final String finalMatchedName = matchedName;
             final String addrDisplay = hasGlobal ? globalIp : "未获取到公网 IPv6 地址";
 
             runOnUiThread(() -> {
@@ -406,16 +433,16 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
                     setTrafficLight(
                             TrafficState.GREEN,
                             "IPv6 畅通无阻",
-                            "公网已畅通 · 延迟: " + rttStr + " · 邻居状态正常",
+                            "公网已畅通 · 延迟: " + rttStr + " · " + finalMatchedName,
                             "公网 IP: " + addrDisplay,
                             finalLatency
                     );
-                    appendLog("[状态检测] 🟢 IPv6 畅通无阻 (" + rttStr + ")");
+                    appendLog("[状态检测] 🟢 IPv6 畅通无阻 (" + rttStr + " / " + finalMatchedName + ")");
                 } else if (hasGlobal && !isConnected) {
                     setTrafficLight(
                             TrafficState.YELLOW,
                             "IPv6 受阻 / 握手超时",
-                            "已获取公网 IP 但公网探针超时，建议点击下方「一键修复」",
+                            "已获取公网 IP 但公网探针均超时，建议点击下方「一键修复」",
                             "本地 IP: " + addrDisplay,
                             0
                     );
