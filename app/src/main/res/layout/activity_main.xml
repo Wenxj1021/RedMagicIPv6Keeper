@@ -1,0 +1,505 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="@color/bg_main">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fitsSystemWindows="true"
+        android:theme="@style/ThemeOverlay.Material3.Dark">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/primary"
+            app:title="@string/app_name"
+            app:subtitle="REDMAGIC Tablet Pro · NP03J"
+            app:titleTextColor="@android:color/white"
+            app:subtitleTextColor="#FFE0E0" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Card 0: IPv6 Traffic Light Status -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_traffic_light"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:strokeWidth="1.5dp"
+                app:strokeColor="@color/tl_housing_stroke"
+                app:cardBackgroundColor="@color/card_bg"
+                android:layout_marginBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Header Row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="IPv6 连通状态"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_secondary" />
+
+                        <TextView
+                            android:id="@+id/btn_recheck_ipv6"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="↻ 重新检测"
+                            android:textSize="13sp"
+                            android:textColor="@color/primary"
+                            android:textStyle="bold"
+                            android:padding="4dp" />
+                    </LinearLayout>
+
+                    <!-- Traffic Light & Info Row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <!-- Traffic Light Housing (Vertical Capsule) -->
+                        <LinearLayout
+                            android:layout_width="38dp"
+                            android:layout_height="96dp"
+                            android:orientation="vertical"
+                            android:gravity="center"
+                            android:background="@drawable/bg_traffic_housing"
+                            android:padding="5dp">
+
+                            <!-- Red Light -->
+                            <View
+                                android:id="@+id/view_light_red"
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:layout_margin="3dp"
+                                android:background="@drawable/bg_circle_light"
+                                android:backgroundTint="@color/tl_red_bright"
+                                android:alpha="0.25" />
+
+                            <!-- Yellow Light -->
+                            <View
+                                android:id="@+id/view_light_yellow"
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:layout_margin="3dp"
+                                android:background="@drawable/bg_circle_light"
+                                android:backgroundTint="@color/tl_yellow_bright"
+                                android:alpha="1.0" />
+
+                            <!-- Green Light -->
+                            <View
+                                android:id="@+id/view_light_green"
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:layout_margin="3dp"
+                                android:background="@drawable/bg_circle_light"
+                                android:backgroundTint="@color/tl_green_bright"
+                                android:alpha="0.25" />
+                        </LinearLayout>
+
+                        <!-- Status Details Text -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="16dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <TextView
+                                    android:id="@+id/tv_tl_title"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="正在检测 IPv6..."
+                                    android:textSize="20sp"
+                                    android:textStyle="bold"
+                                    android:textColor="@color/tl_yellow_bright" />
+
+                                <TextView
+                                    android:id="@+id/tv_tl_badge"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="检测中"
+                                    android:textSize="11sp"
+                                    android:layout_marginStart="8dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingBottom="2dp"
+                                    android:background="@drawable/bg_traffic_housing"
+                                    android:textColor="@color/tl_yellow_bright" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/tv_tl_desc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="正在探测网关 NDP 与公网 IPv6 连通性..."
+                                android:textSize="13sp"
+                                android:textColor="@color/text_secondary"
+                                android:layout_marginTop="4dp" />
+
+                            <TextView
+                                android:id="@+id/tv_tl_address"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="本地 IPv6: 获取中..."
+                                android:textSize="11sp"
+                                android:fontFamily="monospace"
+                                android:textColor="@color/text_secondary"
+                                android:layout_marginTop="4dp"
+                                android:singleLine="true"
+                                android:ellipsize="middle" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 1: Shizuku Status -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/card_stroke"
+                app:cardBackgroundColor="@color/card_bg"
+                android:layout_marginBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Shizuku ADB 权限"
+                            android:textSize="17sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_shizuku_badge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="检测中..."
+                            android:textSize="12sp"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp"
+                            android:background="@color/status_orange_bg"
+                            android:textColor="@color/status_orange" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_shizuku_detail"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="正在连接 Shizuku 服务..."
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginTop="8dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_shizuku_req"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="向 Shizuku 申请授权"
+                        android:layout_marginTop="10dp"
+                        android:visibility="gone"
+                        app:cornerRadius="8dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 2: One-Click Fix -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/card_stroke"
+                app:cardBackgroundColor="@color/card_bg"
+                android:layout_marginBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="功能 1 · 一键修复 IPv6"
+                        android:textSize="17sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="下发 Wi-Fi 深度休眠优化参数、刷新邻居表缓存、组播唤醒网关 NDP 并在 250ms 内激活公网 IPv6。"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginTop="6dp" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/cb_chrome"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="修复后自动重启 Chrome (重置 Happy Eyeballs)"
+                        android:checked="true"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_primary"
+                        app:buttonTint="@color/primary"
+                        android:layout_marginTop="6dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_fix_ipv6"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:text="🚀 一键修复 IPv6"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/white"
+                        app:cornerRadius="10dp"
+                        android:backgroundTint="@color/primary"
+                        android:layout_marginTop="10dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 3: Keepalive Daemon -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/card_stroke"
+                app:cardBackgroundColor="@color/card_bg"
+                android:layout_marginBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="功能 2 · 持续保活守护模式"
+                                android:textSize="17sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary" />
+
+                            <TextView
+                                android:id="@+id/tv_daemon_status"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="守护未启动"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary"
+                                android:layout_marginTop="2dp" />
+                        </LinearLayout>
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_daemon"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="后台周期发送轻量 NDP 探针，彻底阻止光猫 180s RA 租约到期及 Wi-Fi 芯片休眠导致的流表逐出。"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginTop="6dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="探测周期："
+                            android:textSize="13sp"
+                            android:textColor="@color/text_primary" />
+
+                        <RadioGroup
+                            android:id="@+id/rg_interval"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <RadioButton
+                                android:id="@+id/rb_30s"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="30秒"
+                                android:textSize="13sp"
+                                android:textColor="@color/text_primary"
+                                app:buttonTint="@color/primary" />
+
+                            <RadioButton
+                                android:id="@+id/rb_45s"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="45秒 (推荐)"
+                                android:checked="true"
+                                android:textSize="13sp"
+                                android:textColor="@color/text_primary"
+                                app:buttonTint="@color/primary" />
+
+                            <RadioButton
+                                android:id="@+id/rb_60s"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="60秒"
+                                android:textSize="13sp"
+                                android:textColor="@color/text_primary"
+                                app:buttonTint="@color/primary" />
+                        </RadioGroup>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 4: Terminal Logs -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/card_stroke"
+                app:cardBackgroundColor="@color/console_bg"
+                android:layout_marginBottom="24dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="运行终端与诊断输出"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="#E0E0E0" />
+
+                        <TextView
+                            android:id="@+id/btn_diag"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="检测状态"
+                            android:textColor="#80D8FF"
+                            android:textSize="12sp"
+                            android:padding="6dp" />
+
+                        <TextView
+                            android:id="@+id/btn_clear_log"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="清空"
+                            android:textColor="#FF8A80"
+                            android:textSize="12sp"
+                            android:padding="6dp"
+                            android:layout_marginStart="8dp" />
+                    </LinearLayout>
+
+                    <ScrollView
+                        android:id="@+id/sv_log"
+                        android:layout_width="match_parent"
+                        android:layout_height="220dp"
+                        android:fillViewport="true">
+
+                        <TextView
+                            android:id="@+id/tv_console"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="[系统启动] 等待用户操作...\n"
+                            android:textColor="@color/console_text"
+                            android:textSize="12sp"
+                            android:fontFamily="monospace" />
+                    </ScrollView>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

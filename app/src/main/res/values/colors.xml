@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand Primary -->
+    <color name="primary">#E53935</color>
+    <color name="primary_dark">#C62828</color>
+    <color name="primary_variant">#FF5252</color>
+    <color name="accent">#FF1744</color>
+    
+    <!-- Base -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="ic_launcher_background_dark">#121216</color>
+    
+    <!-- Background & Cards (Light Mode) -->
+    <color name="bg_main">#F5F6FA</color>
+    <color name="card_bg">#FFFFFF</color>
+    <color name="card_stroke">#E1E3EB</color>
+    
+    <!-- Text Colors (Light Mode: High Contrast) -->
+    <color name="text_primary">#1A1B22</color>
+    <color name="text_secondary">#4E5162</color>
+    <color name="text_hint">#8A8E9E</color>
+    
+    <!-- Status Badges (Light Mode) -->
+    <color name="status_green">#1B5E20</color>
+    <color name="status_green_bg">#E8F5E9</color>
+    <color name="status_red">#B71C1C</color>
+    <color name="status_red_bg">#FFEBEE</color>
+    <color name="status_orange">#E65100</color>
+    <color name="status_orange_bg">#FFF3E0</color>
+    
+    <!-- Console Terminal -->
+    <color name="console_bg">#18191E</color>
+    <color name="console_text">#69F0AE</color>
+
+    <!-- Traffic Light specific colors -->
+    <color name="tl_red_bright">#FF3B30</color>
+    <color name="tl_red_dim">#33FF3B30</color>
+    <color name="tl_yellow_bright">#FFCC00</color>
+    <color name="tl_yellow_dim">#33FFCC00</color>
+    <color name="tl_green_bright">#28CD41</color>
+    <color name="tl_green_dim">#3328CD41</color>
+    <color name="tl_housing_bg">#212228</color>
+    <color name="tl_housing_stroke">#3A3B44</color>
+</resources>

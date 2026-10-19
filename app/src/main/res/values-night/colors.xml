@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand Primary -->
+    <color name="primary">#E53935</color>
+    <color name="primary_dark">#B71C1C</color>
+    <color name="primary_variant">#FF5252</color>
+    <color name="accent">#FF1744</color>
+    
+    <!-- Base -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="ic_launcher_background_dark">#121216</color>
+    
+    <!-- Background & Cards (Dark Mode: RedMagic Gaming Black) -->
+    <color name="bg_main">#0E0F13</color>
+    <color name="card_bg">#181920</color>
+    <color name="card_stroke">#282A36</color>
+    
+    <!-- Text Colors (Dark Mode: Crisp & High Contrast) -->
+    <color name="text_primary">#F4F5F8</color>
+    <color name="text_secondary">#A5A8B8</color>
+    <color name="text_hint">#6E7182</color>
+    
+    <!-- Status Badges (Dark Mode) -->
+    <color name="status_green">#66BB6A</color>
+    <color name="status_green_bg">#142E18</color>
+    <color name="status_red">#EF5350</color>
+    <color name="status_red_bg">#381414</color>
+    <color name="status_orange">#FFA726</color>
+    <color name="status_orange_bg">#38240E</color>
+    
+    <!-- Console Terminal -->
+    <color name="console_bg">#101115</color>
+    <color name="console_text">#69F0AE</color>
+
+    <!-- Traffic Light specific colors -->
+    <color name="tl_red_bright">#FF453A</color>
+    <color name="tl_red_dim">#33FF453A</color>
+    <color name="tl_yellow_bright">#FFD60A</color>
+    <color name="tl_yellow_dim">#33FFD60A</color>
+    <color name="tl_green_bright">#30D158</color>
+    <color name="tl_green_dim">#3330D158</color>
+    <color name="tl_housing_bg">#131419</color>
+    <color name="tl_housing_stroke">#282A34</color>
+</resources>

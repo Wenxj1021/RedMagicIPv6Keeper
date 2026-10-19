@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">红魔 IPv6 守护助手</string>
+    <string name="shizuku_status_title">Shizuku 运行状态</string>
+    <string name="shizuku_not_running">未检测到 Shizuku 服务运行</string>
+    <string name="shizuku_unauthorized">未授权，点击向 Shizuku 申请 ADB 权限</string>
+    <string name="shizuku_authorized">已获得 Shizuku 权限 (shell)</string>
+    <string name="btn_request_shizuku">申请 Shizuku 权限</string>
+    <string name="btn_fix_ipv6">一键修复 IPv6 连接</string>
+    <string name="cb_restart_chrome">修复后自动重启 Chrome 浏览器 (重置 Happy Eyeballs)</string>
+    <string name="keepalive_title">持续保活守护服务</string>
+    <string name="keepalive_desc">在后台周期性发送轻量 NDP/ICMPv6 探测包，阻止光猫 180s RA 到期及 Wi-Fi 芯片休眠导致的丢包。</string>
+    <string name="keepalive_switch">开启持续保活守护模式</string>
+    <string name="interval_label">保活周期间隔：</string>
+    <string name="log_title">实时运行与网络日志</string>
+    <string name="btn_clear_log">清空日志</string>
+    <string name="btn_check_status">刷新当前 IPv6 状态</string>
+</resources>

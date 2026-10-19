@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- RedMagic Gaming Hexagon Shield Base -->
+    <path
+        android:fillColor="#1F202A"
+        android:strokeColor="#FF2D55"
+        android:strokeWidth="2.5"
+        android:pathData="M54,23 L79,37.5 L79,68.5 L54,83 L29,68.5 L29,37.5 Z" />
+
+    <!-- Inner Glow Hexagon -->
+    <path
+        android:strokeColor="#FF5252"
+        android:strokeWidth="1.2"
+        android:pathData="M54,28 L74,39.5 L74,65.5 L54,77 L34,65.5 L34,39.5 Z" />
+
+    <!-- Wi-Fi / Radar Pulse Waves in Red & Tech Cyan -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M44,38 A12,12 0 0,1 64,38" />
+
+    <path
+        android:strokeColor="#FF2D55"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M39,33 A18,18 0 0,1 69,33" />
+
+    <!-- Stylized Futuristic "6" (IPv6) in Center -->
+    <!-- Stem of 6 -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M60,45 C52,43 45,50 44,59" />
+
+    <!-- Loop of 6 -->
+    <path
+        android:fillColor="#282936"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:pathData="M53,52 A11,11 0 1,1 52.9,52 Z" />
+
+    <!-- Center Active Traffic Light Glowing Core (Green 🟢) -->
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M53,57 A5,5 0 1,1 52.9,57 Z" />
+
+    <!-- Tech Corner Accent Marks -->
+    <path
+        android:strokeColor="#FF2D55"
+        android:strokeWidth="2"
+        android:strokeLineCap="square"
+        android:pathData="M24,42 L24,34 L32,34 M84,42 L84,34 L76,34 M24,66 L24,74 L32,74 M84,66 L84,74 L76,74" />
+
+</vector>
