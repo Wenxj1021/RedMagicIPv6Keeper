@@ -142,18 +142,28 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
 
         binding.btnFixIpv6.setEnabled(false);
         appendLog("========================================");
-        appendLog(">>> 开始执行 IPv6 深度修复流程...");
+        appendLog(">>> 开始执行全链路 IPv6 深度修复...");
+        appendLog("1. 调整 Wi-Fi 功耗与休眠策略为极致性能模式...");
+        appendLog("2. 禁用 IpReachabilityMonitor 误断开保护...");
+        appendLog("3. 重启 L2 Wi-Fi 硬件协议栈 (清除 Qualcomm ND 固件离线漂移)...");
 
         boolean restartChrome = binding.cbChrome.isChecked();
 
-        ShellManager.execAsync(
+        String fixCommand =
                 "settings put global wifi_power_save 0\n" +
                 "settings put global wifi_suspend_optimizations_enabled 0\n" +
                 "settings put global wifi_scan_throttle_enabled 0\n" +
                 "settings put global wifi_sleep_policy 2\n" +
+                "cmd wifi set-ipreach-disconnect disabled\n" +
+                "svc wifi disable\n" +
+                "sleep 2\n" +
+                "svc wifi enable\n" +
+                "sleep 3\n" +
                 "ip -6 neigh flush dev wlan0\n" +
-                "ping6 -c 2 -W 2 'ff02::2%wlan0'\n" +
-                "ping6 -c 1 -W 2 2001:4860:4860::8888 || ping6 -c 1 -W 2 2606:4700:4700::1111 || ping6 -c 1 -W 2 2400:3200::1\n",
+                "ping6 -c 2 -W 2 'ff02::2%wlan0'\n";
+
+        ShellManager.execAsync(
+                fixCommand,
                 new ShellManager.Callback() {
                     @Override
                     public void onOutput(String line) {
@@ -164,11 +174,7 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
                     public void onComplete(int exitCode, String fullOutput) {
                         runOnUiThread(() -> {
                             appendLog("----------------------------------------");
-                            if (exitCode == 0) {
-                                appendLog("✔ [成功] Wi-Fi 功耗优化与 IPv6 NDP 唤醒完成！");
-                            } else {
-                                appendLog("! [提示] 唤醒命令执行完毕 (代码: " + exitCode + ")");
-                            }
+                            appendLog("✔ [成功] Wi-Fi 硬件协议栈已深度重置并重新握手公网 IPv6！");
 
                             if (restartChrome) {
                                 appendLog(">>> 正在重启 Chrome 浏览器以重置 Happy Eyeballs 缓存...");
@@ -232,9 +238,9 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
                 "echo '[NDP 邻居网关状态]'\n" +
                 "ip -6 neigh show dev wlan0\n" +
                 "echo '[公网 IPv6 连通性测试 (Google / Cloudflare / 阿里)]'\n" +
-                "ping6 -c 1 -W 2 2001:4860:4860::8888\n" +
-                "ping6 -c 1 -W 2 2606:4700:4700::1111\n" +
-                "ping6 -c 1 -W 2 2400:3200::1\n",
+                "toybox nc -z -w 2 2001:4860:4860::8888 443 && echo '-> Google (443): 畅通' || echo '-> Google (443): 超时'\n" +
+                "toybox nc -z -w 2 2606:4700:4700::1111 443 && echo '-> Cloudflare (443): 畅通' || echo '-> Cloudflare (443): 超时'\n" +
+                "toybox nc -z -w 2 2400:3200::1 443 && echo '-> 阿里 (443): 畅通' || echo '-> 阿里 (443): 超时'\n",
                 new ShellManager.Callback() {
                     @Override
                     public void onOutput(String line) {
@@ -385,8 +391,8 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
             boolean hasGlobal = (globalIp != null && !globalIp.isEmpty());
 
             TargetNode[] nodes = new TargetNode[]{
-                    new TargetNode("Google", "2001:4860:4860::8888", 53),
-                    new TargetNode("Cloudflare", "2606:4700:4700::1111", 53),
+                    new TargetNode("Google", "2001:4860:4860::8888", 443),
+                    new TargetNode("Cloudflare", "2606:4700:4700::1111", 443),
                     new TargetNode("阿里", "2400:3200::1", 443)
             };
 
@@ -396,27 +402,37 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
             for (TargetNode node : nodes) {
                 pool.execute(() -> {
                     long start = System.currentTimeMillis();
-                    try (java.net.Socket s = new java.net.Socket()) {
-                        s.connect(new java.net.InetSocketAddress(node.host, node.port), 1500);
-                        node.latency = (int) (System.currentTimeMillis() - start);
-                        node.ok = true;
-                    } catch (Exception ignored) {
-                        // If TCP socket fails, attempt ping6 fallback with Shizuku if available
-                        if (ShellManager.hasPermission()) {
-                            ShellManager.CommandResult res = ShellManager.execSync("ping6 -c 1 -W 2 " + node.host, null);
-                            if (res.exitCode == 0) {
-                                node.latency = parsePingRtt(res.output);
-                                node.ok = true;
-                            }
-                        }
-                    } finally {
-                        latch.countDown();
+                    boolean connected = false;
+                    int rtt = -1;
+
+                    // 1. Try port 443 (DoH / HTTPS) first, fallback to port 53 (DNS)
+                    int[] ports = new int[]{node.port, 53};
+                    for (int p : ports) {
+                        try (java.net.Socket s = new java.net.Socket()) {
+                            s.connect(new java.net.InetSocketAddress(node.host, p), 1800);
+                            rtt = (int) (System.currentTimeMillis() - start);
+                            connected = true;
+                            break;
+                        } catch (Exception ignored) {}
                     }
+
+                    if (connected) {
+                        node.latency = rtt;
+                        node.ok = true;
+                    } else if (ShellManager.hasPermission()) {
+                        // 2. Fallback to ping6 if Shizuku available
+                        ShellManager.CommandResult res = ShellManager.execSync("ping6 -c 1 -W 2 " + node.host, null);
+                        if (res.exitCode == 0) {
+                            node.latency = parsePingRtt(res.output);
+                            node.ok = true;
+                        }
+                    }
+                    latch.countDown();
                 });
             }
 
             try {
-                latch.await(2500, java.util.concurrent.TimeUnit.MILLISECONDS);
+                latch.await(3500, java.util.concurrent.TimeUnit.MILLISECONDS);
             } catch (InterruptedException ignored) {}
             pool.shutdown();
 

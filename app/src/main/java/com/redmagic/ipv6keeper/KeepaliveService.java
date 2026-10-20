@@ -41,6 +41,7 @@ public class KeepaliveService extends Service {
 
     private int intervalSeconds = 45;
     private int pingCount = 0;
+    private int consecutiveFailures = 0;
     private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
 
     public interface KeepaliveListener {
@@ -102,30 +103,64 @@ public class KeepaliveService extends Service {
         keepaliveTask = scheduler.scheduleWithFixedDelay(() -> {
             try {
                 if (wakeLock != null && !wakeLock.isHeld()) {
-                    wakeLock.acquire(3000);
+                    wakeLock.acquire(4000);
                 }
 
                 pingCount++;
                 String now = timeFormat.format(new Date());
 
-                // Execute light NDP solicit
-                ShellManager.CommandResult res = ShellManager.execSync(
-                        "ping6 -c 1 -W 2 'ff02::2%wlan0'",
-                        null
-                );
+                // 1. Maintain L2 local link NDP to keep router neighbor alive
+                ShellManager.execSync("ping6 -c 1 -W 1 'ff02::2%wlan0'", null);
 
-                boolean success = (res.exitCode == 0);
-                String msg = success ? "NDP 探针成功 (状态: REACHABLE)" : "NDP 探针无响应 (正在自动唤醒)";
-
-                if (!success) {
-                    // Try flush neighbour cache and re-probe
-                    ShellManager.execSync("ip -6 neigh flush dev wlan0; ping6 -c 1 -W 2 'ff02::2%wlan0'", null);
+                // 2. Real-world WAN IPv6 probe (DoH port 443, immune to ISP ICMP filters)
+                boolean wanOk = false;
+                int wanRtt = -1;
+                long start = System.currentTimeMillis();
+                try (java.net.Socket s = new java.net.Socket()) {
+                    s.connect(new java.net.InetSocketAddress("2606:4700:4700::1111", 443), 1500);
+                    wanRtt = (int) (System.currentTimeMillis() - start);
+                    wanOk = true;
+                } catch (Exception e1) {
+                    try (java.net.Socket s = new java.net.Socket()) {
+                        s.connect(new java.net.InetSocketAddress("2001:4860:4860::8888", 443), 1500);
+                        wanRtt = (int) (System.currentTimeMillis() - start);
+                        wanOk = true;
+                    } catch (Exception ignored) {}
                 }
 
-                updateNotification("IPv6 守护中 · 第 " + pingCount + " 次探测", "上次探测: " + now + " (" + (success ? "正常" : "告警") + ")");
-
-                if (listener != null) {
-                    listener.onTick(pingCount, success, now, msg);
+                if (wanOk) {
+                    consecutiveFailures = 0;
+                    String msg = "双向畅通 🟢 (公网延迟: " + (wanRtt > 0 ? wanRtt + "ms" : "<30ms") + ")";
+                    updateNotification("IPv6 守护中 · 畅通 🟢", "第 " + pingCount + " 次探测 (" + now + ") · 延迟: " + wanRtt + "ms");
+                    if (listener != null) {
+                        listener.onTick(pingCount, true, now, msg);
+                    }
+                } else {
+                    consecutiveFailures++;
+                    if (consecutiveFailures < 2) {
+                        // First warning: soft renew NDP table
+                        ShellManager.execSync("ip -6 neigh flush dev wlan0; ping6 -c 2 -W 2 'ff02::2%wlan0'", null);
+                        String msg = "WAN 握手超时 ⚠️ (第 1 次告警，已触发 NDP 唤醒)";
+                        updateNotification("IPv6 守护中 · 告警 🟡", "WAN 超时 · 尝试 NDP 唤醒 (" + now + ")");
+                        if (listener != null) {
+                            listener.onTick(pingCount, false, now, msg);
+                        }
+                    } else {
+                        // Consecutive failures: Wi-Fi driver firmware ND offload desync detected, trigger hardware stack reset
+                        consecutiveFailures = 0;
+                        ShellManager.execSync(
+                                "cmd wifi set-ipreach-disconnect disabled\n" +
+                                "svc wifi disable\n" +
+                                "sleep 2\n" +
+                                "svc wifi enable\n",
+                                null
+                        );
+                        String msg = "公网假死 🔴 (连续 2 次超时，已自动触发 Wi-Fi 硬件协议栈自愈重启！)";
+                        updateNotification("IPv6 守护中 · 正在自愈 🔄", "已自动重置 Wi-Fi 协议栈并重新握手 (" + now + ")");
+                        if (listener != null) {
+                            listener.onTick(pingCount, false, now, msg);
+                        }
+                    }
                 }
 
             } catch (Exception e) {
