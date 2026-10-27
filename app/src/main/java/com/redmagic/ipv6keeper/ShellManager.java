@@ -14,6 +14,14 @@ public class ShellManager {
     private static final String TAG = "ShellManager";
     private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
 
+    public enum AuthMode {
+        ROOT,       // KernelSU / Magisk / APatch (UID 0)
+        SHIZUKU,    // Shizuku ADB (UID 2000)
+        NONE        // No special privileges
+    }
+
+    private static Boolean sRootAvailable = null;
+
     public interface Callback {
         void onOutput(String line);
         void onComplete(int exitCode, String fullOutput);
@@ -33,6 +41,35 @@ public class ShellManager {
         }
     }
 
+    /**
+     * Actively checks if Root (su) is available and granted.
+     */
+    public static boolean checkRoot() {
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "id"});
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line = reader.readLine();
+            int code = p.waitFor();
+            boolean ok = (code == 0 && line != null && line.contains("uid=0"));
+            sRootAvailable = ok;
+            return ok;
+        } catch (Throwable t) {
+            sRootAvailable = false;
+            return false;
+        }
+    }
+
+    public static boolean isRootGranted() {
+        if (sRootAvailable == null) {
+            return checkRoot();
+        }
+        return sRootAvailable;
+    }
+
+    public static void setRootGranted(boolean granted) {
+        sRootAvailable = granted;
+    }
+
     public static boolean isShizukuAvailable() {
         try {
             return Shizuku.pingBinder();
@@ -41,13 +78,27 @@ public class ShellManager {
         }
     }
 
-    public static boolean hasPermission() {
+    public static boolean isShizukuGranted() {
         if (!isShizukuAvailable()) return false;
         try {
             return Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
         } catch (Throwable t) {
             return false;
         }
+    }
+
+    public static AuthMode getAuthMode() {
+        if (isRootGranted()) {
+            return AuthMode.ROOT;
+        }
+        if (isShizukuGranted()) {
+            return AuthMode.SHIZUKU;
+        }
+        return AuthMode.NONE;
+    }
+
+    public static boolean hasPermission() {
+        return getAuthMode() != AuthMode.NONE;
     }
 
     public static void execAsync(String command, Callback callback) {
@@ -68,7 +119,12 @@ public class ShellManager {
         int exitCode = -1;
         try {
             Process process;
-            if (hasPermission()) {
+            AuthMode mode = getAuthMode();
+
+            if (mode == AuthMode.ROOT) {
+                // Execute directly via Root (su)
+                process = Runtime.getRuntime().exec(new String[]{"su", "-c", command});
+            } else if (mode == AuthMode.SHIZUKU) {
                 // Execute through Shizuku with shell (ADB) privileges
                 java.lang.reflect.Method method = Shizuku.class.getDeclaredMethod(
                         "newProcess",

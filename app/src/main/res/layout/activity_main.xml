@@ -218,7 +218,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Shizuku ADB 权限"
+                            android:text="系统高级执行权限 (Root / Shizuku)"
                             android:textSize="17sp"
                             android:textStyle="bold"
                             android:textColor="@color/text_primary" />
@@ -241,19 +241,34 @@
                         android:id="@+id/tv_shizuku_detail"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="正在连接 Shizuku 服务..."
+                        android:text="正在检测 Root 与 Shizuku 授权状态..."
                         android:textSize="13sp"
                         android:textColor="@color/text_secondary"
                         android:layout_marginTop="8dp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_shizuku_req"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="向 Shizuku 申请授权"
-                        android:layout_marginTop="10dp"
-                        android:visibility="gone"
-                        app:cornerRadius="8dp" />
+                        android:orientation="horizontal"
+                        android:layout_marginTop="10dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_root_req"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="申请 Root 授权"
+                            android:layout_marginEnd="10dp"
+                            android:visibility="gone"
+                            app:cornerRadius="8dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_shizuku_req"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="申请 Shizuku 授权"
+                            android:visibility="gone"
+                            app:cornerRadius="8dp" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

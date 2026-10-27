@@ -28,18 +28,18 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
     private ActivityMainBinding binding;
     private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
 
-    private final Shizuku.OnBinderReceivedListener binderReceivedListener = this::checkShizukuStatus;
-    private final Shizuku.OnBinderDeadListener binderDeadListener = this::checkShizukuStatus;
+    private final Shizuku.OnBinderReceivedListener binderReceivedListener = this::checkAuthStatus;
+    private final Shizuku.OnBinderDeadListener binderDeadListener = this::checkAuthStatus;
     private final Shizuku.OnRequestPermissionResultListener requestPermissionResultListener =
             (requestCode, grantResult) -> {
                 if (requestCode == SHIZUKU_REQ_CODE) {
                     if (grantResult == PackageManager.PERMISSION_GRANTED) {
                         appendLog("[Shizuku] 恭喜！已成功获取 ADB Shell 权限。");
-                        checkShizukuStatus();
+                        checkAuthStatus();
                     } else {
                         appendLog("[Shizuku] 错误：用户拒绝了权限授权。");
-                        Toast.makeText(this, "需要 Shizuku 权限以执行优化指令", Toast.LENGTH_SHORT).show();
-                        checkShizukuStatus();
+                        Toast.makeText(this, "需要权限以执行优化指令", Toast.LENGTH_SHORT).show();
+                        checkAuthStatus();
                     }
                 }
             };
@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
 
         initViews();
         registerShizuku();
-        checkShizukuStatus();
+        checkAuthStatus();
         requestIgnoreBatteryOptimizations();
         checkIpv6Status();
     }
@@ -61,7 +61,8 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
         // Button 0: Re-check IPv6 Traffic Light
         binding.btnRecheckIpv6.setOnClickListener(v -> checkIpv6Status());
 
-        // Shizuku request button
+        // Root & Shizuku request buttons
+        binding.btnRootReq.setOnClickListener(v -> requestRootPermission());
         binding.btnShizukuReq.setOnClickListener(v -> requestShizukuPermission());
 
         // Button 1: One-click IPv6 fix
@@ -94,31 +95,54 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
         Shizuku.addRequestPermissionResultListener(requestPermissionResultListener);
     }
 
-    private void checkShizukuStatus() {
-        runOnUiThread(() -> {
-            if (!ShellManager.isShizukuAvailable()) {
-                binding.tvShizukuBadge.setText("未运行");
-                binding.tvShizukuBadge.setTextColor(getColor(R.color.status_red));
-                binding.tvShizukuBadge.setBackgroundColor(getColor(R.color.status_red_bg));
-                binding.tvShizukuDetail.setText("未检测到 Shizuku 服务。请在平板上打开 Shizuku App 并启动服务。");
-                binding.btnShizukuReq.setVisibility(View.GONE);
-                return;
-            }
+    private void checkAuthStatus() {
+        new Thread(() -> {
+            boolean hasRoot = ShellManager.checkRoot();
+            boolean hasShizuku = ShellManager.isShizukuGranted();
+            boolean shizukuAvailable = ShellManager.isShizukuAvailable();
 
-            if (ShellManager.hasPermission()) {
-                binding.tvShizukuBadge.setText("已授权");
-                binding.tvShizukuBadge.setTextColor(getColor(R.color.status_green));
-                binding.tvShizukuBadge.setBackgroundColor(getColor(R.color.status_green_bg));
-                binding.tvShizukuDetail.setText("已成功绑定 Shizuku，享有 ADB Shell (UID 2000) 完整执行权限。");
-                binding.btnShizukuReq.setVisibility(View.GONE);
-            } else {
-                binding.tvShizukuBadge.setText("未授权");
-                binding.tvShizukuBadge.setTextColor(getColor(R.color.status_orange));
-                binding.tvShizukuBadge.setBackgroundColor(getColor(R.color.status_orange_bg));
-                binding.tvShizukuDetail.setText("Shizuku 正在运行，但本应用尚未获得授权。请点击下方按钮申请。");
-                binding.btnShizukuReq.setVisibility(View.VISIBLE);
-            }
-        });
+            runOnUiThread(() -> {
+                if (hasRoot) {
+                    binding.tvShizukuBadge.setText("Root 已授权 👑");
+                    binding.tvShizukuBadge.setTextColor(getColor(R.color.status_green));
+                    binding.tvShizukuBadge.setBackgroundColor(getColor(R.color.status_green_bg));
+                    binding.tvShizukuDetail.setText("已获取 KernelSU / Magisk Root 最高系统权限 (UID 0)，保活与修复畅通无阻。");
+                    binding.btnRootReq.setVisibility(View.GONE);
+                    binding.btnShizukuReq.setVisibility(View.GONE);
+                } else if (hasShizuku) {
+                    binding.tvShizukuBadge.setText("Shizuku 已授权 ⚡");
+                    binding.tvShizukuBadge.setTextColor(getColor(R.color.status_green));
+                    binding.tvShizukuBadge.setBackgroundColor(getColor(R.color.status_green_bg));
+                    binding.tvShizukuDetail.setText("已成功绑定 Shizuku，享有 ADB Shell (UID 2000) 完整执行权限。");
+                    binding.btnRootReq.setVisibility(View.GONE);
+                    binding.btnShizukuReq.setVisibility(View.GONE);
+                } else {
+                    binding.tvShizukuBadge.setText("未授权 ⚠️");
+                    binding.tvShizukuBadge.setTextColor(getColor(R.color.status_orange));
+                    binding.tvShizukuBadge.setBackgroundColor(getColor(R.color.status_orange_bg));
+                    binding.tvShizukuDetail.setText("未获取到执行权限。支持直接申请 Root 授权或通过 Shizuku 授权。");
+                    binding.btnRootReq.setVisibility(View.VISIBLE);
+                    binding.btnShizukuReq.setVisibility(shizukuAvailable ? View.VISIBLE : View.GONE);
+                }
+            });
+        }).start();
+    }
+
+    private void requestRootPermission() {
+        appendLog(">>> 正在向系统申请 Root (su) 权限...");
+        new Thread(() -> {
+            boolean ok = ShellManager.checkRoot();
+            runOnUiThread(() -> {
+                if (ok) {
+                    appendLog("✔ [成功] Root 权限已成功授予 (UID 0)！");
+                    Toast.makeText(this, "Root 权限已获取！", Toast.LENGTH_SHORT).show();
+                } else {
+                    appendLog("❌ [失败] 未能获取 Root 权限，请在授权弹窗中允许，或检查 KernelSU / Magisk。");
+                    Toast.makeText(this, "Root 授权失败或已拒绝", Toast.LENGTH_SHORT).show();
+                }
+                checkAuthStatus();
+            });
+        }).start();
     }
 
     private void requestShizukuPermission() {
@@ -135,8 +159,8 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
 
     private void executeOneClickFix() {
         if (!ShellManager.hasPermission()) {
-            Toast.makeText(this, "请先授予 Shizuku 权限！", Toast.LENGTH_SHORT).show();
-            requestShizukuPermission();
+            Toast.makeText(this, "请先授予 Root 或 Shizuku 权限！", Toast.LENGTH_SHORT).show();
+            checkAuthStatus();
             return;
         }
 
@@ -303,7 +327,7 @@ public class MainActivity extends AppCompatActivity implements KeepaliveService.
     protected void onResume() {
         super.onResume();
         KeepaliveService.setListener(this);
-        checkShizukuStatus();
+        checkAuthStatus();
         checkIpv6Status();
     }
 
